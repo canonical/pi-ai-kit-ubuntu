@@ -1,29 +1,44 @@
 # Raspberry Pi AI Kit on Ubuntu
 
-This repository provides a method of using the [Raspberry Pi AI Kit](https://www.raspberrypi.com/documentation/accessories/ai-kit.html) on Ubuntu 24.04. It makes use of a Docker container to bundle the correct versions of the Hailo SDK libraries.
+This repository provides a method of using the [Raspberry Pi AI Kit](https://www.raspberrypi.com/documentation/accessories/ai-kit.html) on Ubuntu 24.04.
+It makes use of a Docker container to bundle the correct versions of the Hailo SDK libraries.
 
 ## Install driver on host
 
-For the SDK to work with the AI accelerator hardware, a matching version of the driver needs to be used. Even a minor version difference will prevent the SDK from detecting the hardware.
+For the SDK to work with the AI accelerator hardware, a matching version of the driver needs to be used.
+Even a minor version difference will prevent the SDK from detecting the hardware.
 
-We get the exact version of the driver's source code from Github, build it and then install it on the host system.
+Install requirements on host:
 
 ```
-$ git clone https://github.com/hailo-ai/hailort-drivers.git
-$ git checkout f840b6219230ec9a350444dbb903adbf0f63a373
-$ cd linux/pcie
-$ make all
-$ sudo make install
-$ sudo modprobe hailo_pci
-$ cd ../..
-$ ./download_firmware.sh
-$ sudo mkdir -p /lib/firmware/hailo
-$ sudo mv hailo8_fw.4.17.0.bin /lib/firmware/hailo/hailo8_fw.bin
-$ sudo cp ./linux/pcie/51-hailo-udev.rules /etc/udev/rules.d/
-$ sudo udevadm control --reload-rules && sudo udevadm trigger
+sudo apt-get install linux-headers-$(uname -r)
 ```
 
-It's better to restart after installing this driver. After a reboot you can look at the kernel buffer to see if the device is detected and the driver loaded.
+We get the exact version of the driver's source code from Github:
+
+```
+git clone https://github.com/hailo-ai/hailort-drivers.git
+cd hailort-drivers
+git checkout f840b6219230ec9a350444dbb903adbf0f63a373
+```
+
+Then build it and install it on the host system:
+
+```
+cd linux/pcie
+make all
+sudo make install
+sudo modprobe hailo_pci
+cd ../..
+./download_firmware.sh
+sudo mkdir -p /lib/firmware/hailo
+sudo mv hailo8_fw.4.17.0.bin /lib/firmware/hailo/hailo8_fw.bin
+sudo cp ./linux/pcie/51-hailo-udev.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+It's better to restart after installing this driver.
+After a reboot you can look at the kernel buffer to see if the device is detected and the driver loaded.
 
 ```
 $ sudo dmesg | grep hailo
@@ -39,34 +54,36 @@ $ sudo dmesg | grep hailo
 Configure host X server to accept connections from a Docker container
 
 ```
-$ xhost +local:docker
+xhost +local:docker
 ```
 
 Build and start the container
 
 ```
-$ docker compose build
-$ docker compose up -d hailo-ubuntu-pi
+docker compose build
+docker compose up -d hailo-ubuntu-pi
 ```
 
 Open a shell inside the container
 
 ```
-$ docker compose attach hailo-ubuntu-pi
+docker compose exec hailo-ubuntu-pi /bin/bash
 ```
 
 ## Using the container
 
-Test that the camera is working. On Ubuntu you will have to add the `--qt-preview` argument to all `rpicam-` commands. This is because the default windowing toolkit these programs use is not supported on Ubuntu.
+Test that the camera is working. On Ubuntu you will have to add the `--qt-preview` argument to all `rpicam-` commands.
+This is because the default windowing toolkit used by these examples is not supported on Ubuntu.
 
 ```
-$ rpicam-hello --timeout=0 --qt-preview
+rpicam-hello --timeout=0 --qt-preview
 ```
 
-Install Hailo libraries. This can't be done as part of building the container, as configuring the packages depend on a running systemd.
+Install Hailo libraries.
+This can't be done as part of building the container, as configuring the packages depend on a running systemd.
 
 ```
-$ apt install hailo-all
+apt install hailo-all
 ```
 
 ## Verify installation
@@ -87,7 +104,7 @@ Part Number: <redacted>
 Product Name: HAILO-8L AI ACC M.2 B+M KEY MODULE EXT TMP
 ```
 
-[Test TAPPAS Core installation](https://github.com/hailo-ai/hailo-rpi5-examples/blob/main/doc/install-raspberry-pi5.md#test-tappas-core-installation-by-running-the-following-commands).
+[Test TAPPAS Core installation](https://github.com/hailo-ai/hailo-rpi5-examples/blob/main/doc/install-raspberry-pi5.md#test-tappas-core-installation-by-running-the-following-commands):
 
 ```
 $ gst-inspect-1.0 hailotools
@@ -146,21 +163,26 @@ Plugin Details:
 
 ## GS camera on Pi 5
 
-For the Global Shutter camera one [needs to specify the image size](https://community.hailo.ai/t/rpi5-pi-global-shutter-camera/1234).
+For the Global Shutter camera one [needs to specify the image size](https://community.hailo.ai/t/rpi5-pi-global-shutter-camera/1234), using the `--width` and `--height` arguments.
 
 ```
-$ rpicam-vid -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov8_inference.json --lores-width 640 --lores-height 640 --width 1456 --height 1088 --qt-preview
+rpicam-vid -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov8_inference.json --lores-width 640 --lores-height 640 --width 1456 --height 1088 --qt-preview
 ```
 
 ## Pi Camera v1.3 on Pi 5
 
-### Object detection 
+### Object detection
+
 ```
-$ rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov6_inference.json --lores-width 640 --lores-height 640 --qt-preview
+rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov6_inference.json --lores-width 640 --lores-height 640 --qt-preview
+```
 
-$ rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov8_inference.json --lores-width 640 --lores-height 640 --qt-preview
+```
+rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov8_inference.json --lores-width 640 --lores-height 640 --qt-preview
+```
 
-$ rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolox_inference.json --lores-width 640 --lores-height 640 --qt-preview
+```
+rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolox_inference.json --lores-width 640 --lores-height 640 --qt-preview
 ```
 
 ![Object Detection](media/Object%20Detection.png)
@@ -168,48 +190,65 @@ $ rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolox_inferen
 ### Person and face detection
 
 ```
-$ rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov5_personface.json --lores-width 640 --lores-height 640 --qt-preview
+rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov5_personface.json --lores-width 640 --lores-height 640 --qt-preview
 ```
 
 ### Image segmentation
+
 ```
-$ rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov5_segmentation.json --lores-width 640 --lores-height 640 --framerate 20 --qt-preview
+rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov5_segmentation.json --lores-width 640 --lores-height 640 --framerate 20 --qt-preview
 ```
 
 ### Pose estimation
+
 ```
-$ rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov8_pose.json --lores-width 640 --lores-height 640 --qt-preview
+rpicam-hello -t 0 --post-process-file ~/rpicam-apps/assets/hailo_yolov8_pose.json --lores-width 640 --lores-height 640 --qt-preview
 ```
 
 ![Pose Estimation](media/Pose%20Estimation.png)
 
 ## Advanced examples
 
-Hailo publishes [more examples](https://github.com/hailo-ai/hailo-rpi5-examples/blob/main/README.md#configure-environment) for the Raspberry Pi 5. We can run these too.
+Hailo publishes [more examples](https://github.com/hailo-ai/hailo-rpi5-examples/blob/main/README.md#configure-environment) for the Raspberry Pi 5.
+We can run these too.
+
+### Set up environment and download assets
 
 ```
-$ cd hailo-rpi5-examples
-$ source setup_env.sh
-$ pip install -r requirements.txt
-$ ./compile_postprocess.sh
-$ python basic_pipelines/detection.py --input resources/detection0.mp4
+cd hailo-rpi5-examples
+source setup_env.sh
+pip install -r requirements.txt
+./compile_postprocess.sh
+python basic_pipelines/detection.py --input resources/detection0.mp4
 ```
 
 ### Using the Raspberry Pi camera
 
-> If you are using a camera that does not support auto focus, these examples might exit with an error. See [issue](https://github.com/hailo-ai/hailo-rpi5-examples/issues/23) and [fix](https://github.com/hailo-ai/hailo-rpi5-examples/pull/24).
-
 ```
-$ python basic_pipelines/detection.py -i rpi
-$ python basic_pipelines/detection.py --labels-json resources/barcode-labels.json --hef resources/yolov8s-hailo8l-barcode.hef -i rpi
-$ python basic_pipelines/pose_estimation.py -i rpi
-$ python basic_pipelines/instance_segmentation.py -i rpi
+python basic_pipelines/detection.py -i rpi
+python basic_pipelines/detection.py --labels-json resources/barcode-labels.json --hef resources/yolov8s-hailo8l-barcode.hef -i rpi
+python basic_pipelines/pose_estimation.py -i rpi
+python basic_pipelines/instance_segmentation.py -i rpi
 ```
-
-Check the [media directory](/media) for screenshots of these examples running.
 
 ### A USB webcam is also supported
 
 ```
-$ python basic_pipelines/detection.py -i /dev/video8
+python basic_pipelines/detection.py -i /dev/video8
+```
+
+## Notes
+
+If the Advanced Examples fail with the following error:
+
+```
+AfMode not supported by this camera, please retry with 'auto-focus-mode=AfModeManual'
+```
+
+Run these commands to change `auto-focus-mode` to manual:
+
+```
+sed -i -e 's/auto-focus-mode=2/auto-focus-mode=0/g' basic_pipelines/detection.py
+sed -i -e 's/auto-focus-mode=2/auto-focus-mode=0/g' basic_pipelines/pose_estimation.py
+sed -i -e 's/auto-focus-mode=2/auto-focus-mode=0/g' basic_pipelines/instance_segmentation.py
 ```

@@ -8,7 +8,6 @@ services:
     devices:
       - /dev/dri:/dev/dri
     volumes:
-      # - /home/jpmeijers/.Xauthority:/root/.Xauthority:rw
       - /tmp/.X11-unix:/tmp/.X11-unix
       - /dev:/dev
       - /lib/firmware:/lib/firmware
